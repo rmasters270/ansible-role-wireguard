@@ -1,0 +1,68 @@
+---
+# tasks file for wireguard
+
+- name: Create Wireguard namespace
+  kubernetes.core.k8s:
+    name: '{{ wireguard_namespace }}'
+    api_version: v1
+    kind: Namespace
+  when: wireguard_install | default('present') == 'present'
+
+- name: Get persistent volume storageClass
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl -n {{ wireguard_namespace }} get pvc
+      -o custom-columns=STORAGECLASS:.spec.storageClassName
+      --no-headers | awk 'FNR <= 1 { print $1 }'
+  register: _wireguard_storageclass
+  ignore_errors: true
+  changed_when: false
+
+- name: Set storageClass
+  ansible.builtin.set_fact:
+    wireguard_storageclass: "{{ _wireguard_storageclass.stdout }}"
+  when: _wireguard_storageclass.stdout | length > 0
+
+- name: Deploy Wireguard Resources
+  kubernetes.core.k8s:
+    namespace: '{{ wireguard_namespace }}'
+    template: '{{ item }}'
+    state: '{{ wireguard_install | default("present") }}'
+  with_items:
+    - storage-vpn.yaml.j2
+    - storage-ui.yaml.j2
+    - configmap-ui-env-secret.yaml.j2
+    - configmap-wg-env.yaml.j2
+    - configmap-ui-env.yaml.j2
+    - configmap-ui-scripts.yaml.j2
+  register: wireguard_resources
+
+- name: Deploy Wireguard
+  kubernetes.core.k8s:
+    namespace: '{{ wireguard_namespace }}'
+    template: '{{ item }}'
+    state: '{{ wireguard_install | default("present") }}'
+  with_items:
+    - deployment.yaml.j2
+    - service.yaml.j2
+    - ingressroute-vpn.yaml.j2
+    - ingressroute-ui.yaml.j2
+  register: wireguard_deployment
+
+- name: Notify restart Wireguard deployment handler
+  ansible.builtin.command:
+    cmd: "echo $null"
+  changed_when:
+    - wireguard_resources.changed
+    - not wireguard_deployment.changed
+    - wireguard_install | default('present') == 'present'
+  notify: 'Restart Wireguard deployment'
+
+- name: Remove Wireguard namespace
+  kubernetes.core.k8s:
+    name: '{{ wireguard_namespace }}'
+    api_version: v1
+    kind: Namespace
+    state: '{{ wireguard_install | default("present") }}'
+  when: wireguard_install | default('present') == 'absent'

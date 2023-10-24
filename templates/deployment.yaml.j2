@@ -1,0 +1,125 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wireguard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wireguard
+  template:
+    metadata:
+      labels:
+        app: wireguard
+    spec:
+      containers:
+
+      - name: wireguard
+        image: linuxserver/wireguard:{{ wireguard_image_version }}
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_MODULE
+          privileged: true
+        envFrom:
+        - configMapRef:
+            name: wireguard-env
+        ports:
+        - name: vpnudp
+          containerPort: 51820
+          protocol: UDP
+        resources:
+          requests:
+              memory: "64Mi"
+              cpu: "100m"
+          limits:
+              memory: "128Mi"
+              cpu: "200m"
+        volumeMounts:
+          - name: wg-config
+            mountPath: /config
+          - name: host-modules
+            mountPath: /lib/modules
+
+      - name: wireguard-ui
+        image: ngoduykhanh/wireguard-ui:{{ wireguard_ui_image_version }}
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_MODULE
+        envFrom:
+        - configMapRef:
+            name: wireguard-ui-env
+        - secretRef:
+            name: wireguard-ui-env-secret
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+        volumeMounts:
+          - name: wg-ui-db
+            mountPath: /app/db
+          - name: wg-config
+            mountPath: /etc/wireguard
+          - name: bin-wgui
+            mountPath: /usr/local/bin/wgui
+            subPath: wgui
+          - name: init-wgui
+            mountPath: /etc/init.d/wgui
+            subPath: wgui
+          - name: bin-start
+            mountPath: /usr/local/bin/start.sh
+            subPath: start.sh
+          - name: bin-post
+            mountPath: /usr/local/bin/post.sh
+            subPath: post.sh
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/usr/local/bin/start.sh"]
+
+      volumes:
+        - name: host-modules
+          hostPath:
+            path: /lib/modules
+            type: Directory
+        - name: wg-config
+          persistentVolumeClaim:
+            claimName: wireguard-config-pvc
+        - name: wg-ui-db
+          persistentVolumeClaim:
+            claimName: wireguard-ui-db-pvc
+        - name: bin-wgui
+          configMap:
+            name: wireguard-ui-scripts
+            defaultMode: 0755
+            items:
+              - key: bin.wgui
+                path: wgui
+        - name: init-wgui
+          configMap:
+            name: wireguard-ui-scripts
+            defaultMode: 0755
+            items:
+              - key: init.wgui
+                path: wgui
+        - name: bin-start
+          configMap:
+            name: wireguard-ui-scripts
+            defaultMode: 0755
+            items:
+              - key: start.sh
+                path: start.sh
+        - name: bin-post
+          configMap:
+            name: wireguard-ui-scripts
+            defaultMode: 0755
+            items:
+              - key: post.sh
+                path: post.sh

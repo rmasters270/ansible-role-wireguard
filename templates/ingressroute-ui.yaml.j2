@@ -1,0 +1,17 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: wireguard-web
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`{{ wireguard_ui_hostname }}`)
+      kind: Rule
+      services:
+        - name: wireguard-service
+          port: 80
+          sticky:
+            cookie: {}
+  tls: {}

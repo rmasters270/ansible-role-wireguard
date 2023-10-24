@@ -1,0 +1,27 @@
+---
+# defaults file for wireguard
+
+timezone: Etc/UTC
+wireguard_namespace: wireguard
+wireguard_image_version: latest
+wireguard_ui_image_version: latest
+wireguard_ui_hostname: wireguard.{{ ansible_domain }}
+wireguard_ui_endpoint_address:  # Null = Resolved to your public ip address
+wireguard_ui_dns: 1.1.1.1
+wireguard_ui_internal_subnet: "10.252.1.0/24"
+wireguard_ui_username: admin
+wireguard_ui_password: admin
+wireguard_storageclass:       # Null = use default storage class.
+wireguard_install: present
+
+wireguard_ui_post_all: |-
+
+wireguard_ui_post_up: |-
+  iptables -A FORWARD -i $WIREGUARD_INTERFACE -j ACCEPT
+  iptables -A FORWARD -o $WIREGUARD_INTERFACE -j ACCEPT
+  iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE
+
+wireguard_ui_post_down: |-
+  iptables -D FORWARD -i $WIREGUARD_INTERFACE -j ACCEPT
+  iptables -D FORWARD -o $WIREGUARD_INTERFACE -j ACCEPT
+  iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE

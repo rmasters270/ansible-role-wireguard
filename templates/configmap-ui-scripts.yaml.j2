@@ -1,0 +1,102 @@
+#jinja2: lstrip_blocks: "True"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wireguard-ui-scripts
+data:
+# /usr/local/bin/wgui
+  bin.wgui: |
+    #!/bin/bash
+
+    # fix permissions on wg0.conf
+    chmod 600 /etc/wireguard/wg0.conf
+
+    # Sync the new config.
+    wg syncconf wg0 <(wg-quick strip /etc/wireguard/wg0.conf)
+
+    # Get the previous and current private keys.
+    previousKey=$(head -n 1 /etc/wireguard/wg0.key)
+    configKey=$(awk -F "=" '/PrivateKey/ {print $2}' /etc/wireguard/wg0.conf)
+
+    # If the private key was updated restart wireguard and save the new key.
+    if [ "$configKey" != "$previousKey" ]; then
+      wg-quick down wg0
+      wg-quick up wg0
+      echo $configKey > /etc/wireguard/wg0.key
+    fi
+
+# /etc/init.d/wgui
+  init.wgui: |
+    #!/sbin/openrc-run
+    command=/sbin/inotifyd
+    command_args="/usr/local/bin/wgui /etc/wireguard/wg0.conf:w"
+    pidfile=/run/${RC_SVCNAME}.pid
+    command_background=yes
+
+# /usr/local/bin/start.sh
+  start.sh: |
+    #!/bin/bash
+
+    # Install openrc.
+    mkdir -pv /run/openrc/exclusive
+    touch /run/openrc/softlevel
+    apk add openrc
+
+    # Create blank configuration.
+    if [ ! -e /etc/wireguard/wg0.conf ]; then
+      touch /etc/wireguard/wg0.conf
+      chmod 600 /etc/wireguard/wg0.conf
+    fi
+
+    # Save the current private key.
+    touch /etc/wireguard/wg0.key
+    chmod 600 /etc/wireguard/wg0.key
+    configKey=$(awk -F "=" '/PrivateKey/ {print $2}' /etc/wireguard/wg0.conf)
+    echo $configKey > /etc/wireguard/wg0.key
+
+    # Create symlinks for wireguard config.
+    # https://github.com/ngoduykhanh/wireguard-ui/issues/456
+    ln -s /etc/wireguard/wg0.conf /config/wg0.conf
+    ln -s /config/wg_confs/wg0.conf /config/wg0.conf
+
+    # Restart Wireguard.
+    wg-quick down wg0
+    wg-quick up wg0
+
+    # Start wgui service.
+    rc-service wgui start
+    rc-update add wgui default
+
+# /usr/local/bin/post.sh
+  post.sh: |
+    #!/usr/bin/bash
+
+    ACTION=$1
+    WIREGUARD_INTERFACE=$2
+  {% if wireguard_ui_post_all is defined and wireguard_ui_post_all|length %}
+  {% for line in wireguard_ui_post_all.split('\n') %}
+    {{ line }}
+  {% endfor %}
+  {% endif %}
+
+    echo post$ACTION
+    if [ $ACTION = up ]; then
+      set -x  #echo on
+    {% if wireguard_ui_post_up is defined and wireguard_ui_post_up|length %}
+    {% for line in wireguard_ui_post_up.split('\n') %}
+      {{ line }}
+    {% endfor %}
+    {% endif %}
+      { set +x; } 2>/dev/null  #echo off
+    fi
+
+    if [ $ACTION = down ]; then
+      set -x  #echo on
+    {% if wireguard_ui_post_down is defined and wireguard_ui_post_down|length %}
+    {% for line in wireguard_ui_post_down.split('\n') %}
+      {{ line }}
+    {% endfor %}
+    {% endif %}
+      { set +x; } 2>/dev/null #echo off
+    fi

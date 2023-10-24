@@ -1,0 +1,16 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: wireguard-ui-env
+  labels:
+    app: wireguard-ui
+data:
+{% if wireguard_ui_endpoint_address is defined and wireguard_ui_endpoint_address|length %}
+  WGUI_ENDPOINT_ADDRESS: "{{ wireguard_ui_endpoint_address }}"
+{% endif %}
+  WGUI_DNS: "{{ wireguard_ui_dns }}"
+  WGUI_SERVER_INTERFACE_ADDRESSES: "{{ wireguard_ui_internal_subnet }}"
+  WGUI_SERVER_POST_UP_SCRIPT: "bash /usr/local/bin/post.sh up %i"
+  WGUI_SERVER_POST_DOWN_SCRIPT: "bash /usr/local/bin/post.sh down %i"
+  WGUI_USERNAME: "{{ wireguard_ui_username }}"

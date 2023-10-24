@@ -1,0 +1,7 @@
+---
+# handlers file for wireguard
+
+- name: Restart Wireguard deployment
+  ansible.builtin.command:
+    cmd: 'kubectl rollout restart deployment wireguard -n {{ wireguard_namespace }}'
+  changed_when: true
