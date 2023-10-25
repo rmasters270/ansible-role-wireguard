@@ -2,7 +2,7 @@
 
 Install Wireguard and Wireguard-UI in Kubernetes.
 
-[![Ansible Galaxy](https://img.shields.io/badge/ansible--galaxy-wireguard-blue.svg)](https://galaxy.ansible.com/rmasters270/wireguard)
+[![Ansible Galaxy](https://img.shields.io/badge/ansible--galaxy-wireguard-blue.svg)](https://galaxy.ansible.com/ui/standalone/roles/rmasters270/wireguard)
 
 ## Requirements
 
