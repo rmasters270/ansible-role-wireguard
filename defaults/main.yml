@@ -3,7 +3,7 @@
 
 timezone: Etc/UTC
 wireguard_namespace: wireguard
-wireguard_image_version: latest
+wireguard_image_version: v1.0.20210914-ls7
 wireguard_ui_image_version: latest
 wireguard_ui_hostname: wireguard.{{ ansible_domain }}
 wireguard_ui_endpoint_address:  # Null = Resolved to your public ip address

@@ -55,11 +55,6 @@ data:
     configKey=$(awk -F "=" '/PrivateKey/ {print $2}' /etc/wireguard/wg0.conf)
     echo $configKey > /etc/wireguard/wg0.key
 
-    # Create symlinks for wireguard config.
-    # https://github.com/ngoduykhanh/wireguard-ui/issues/456
-    ln -s /etc/wireguard/wg0.conf /config/wg0.conf
-    ln -s /config/wg_confs/wg0.conf /config/wg0.conf
-
     # Restart Wireguard.
     wg-quick down wg0
     wg-quick up wg0
